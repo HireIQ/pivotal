@@ -14,6 +14,16 @@ class Story(object):
         self.url = None
         self.current_state = None
 
+    @staticmethod
+    def from_xml(xml):
+        story = Story()
+        for field in xml:
+            if field.tag == 'id':
+                story.story_id = int(field.text)
+            elif hasattr(story, field.tag):
+                setattr(story, field.tag, field.text)
+        return story
+
 
 class Project(object):
     '''
@@ -23,21 +33,30 @@ class Project(object):
         self.project = project
         self.token = token
 
-    def _get(self, uri):
+    def _request(self, method, uri, **kwargs):
         url = "%s/%d/%s" % (PIVOTAL_BASE_URL, self.project, uri)
-        result = requests.get(url, headers={"X-TrackerToken": self.token})
+        if 'headers' not in kwargs:
+            kwargs['headers'] = {}
+        kwargs['headers']['X-TrackerToken'] = self.token
+        kwargs['headers']['Content-type'] = 'application/xml'
+        result = requests.request(method, url, **kwargs)
         result.raise_for_status()
         return etree.fromstring(result.content)
 
+    def update_story(self, story, **kwargs):
+        '''Update a story in this projects'''
+        if isinstance(story, Story):
+            story = story.id
+        root = etree.Element("story")
+        for field, val in kwargs.items():
+            el = etree.SubElement(root, field)
+            el.text = val
+        body = etree.tostring(root)
+        return Story.from_xml(self._request('put', "stories/%d" % story, data=body))
+
     def filter_stories(self, filter_string):
-        response = self._get("stories?filter=%s" % filter_string)
+        response = self._request('get', "stories?filter=%s" % filter_string)
         stories = []
         for story_xml in response.iterchildren(tag="story"):
-            story = Story()
-            for field in story_xml:
-                if field.tag == 'id':
-                    story.story_id = int(field.text)
-                elif hasattr(story, field.tag):
-                    setattr(story, field.tag, field.text)
-            stories.append(story)
+            stories.append(Story.from_xml(story_xml))
         return stories
