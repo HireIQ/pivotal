@@ -43,6 +43,10 @@ class Project(object):
         result.raise_for_status()
         return etree.fromstring(result.content)
 
+    def get_story(self, story):
+        '''Fetch a specific story'''
+        return Story.from_xml(self._request("get", "stories/%d" % int(story)))
+
     def update_story(self, story, **kwargs):
         '''Update a story in this projects'''
         if isinstance(story, Story):
