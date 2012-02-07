@@ -50,7 +50,7 @@ class Project(object):
     def update_story(self, story, **kwargs):
         '''Update a story in this projects'''
         if isinstance(story, Story):
-            story = story.id
+            story = story.story_id
         root = etree.Element("story")
         for field, val in kwargs.items():
             el = etree.SubElement(root, field)
